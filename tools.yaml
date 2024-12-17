@@ -1,0 +1,3 @@
+tools:
+  get_current_time: src/tools/get_current_time/get_current_time.yaml
+  get_current_weather: src/tools/get_current_weather/get_current_weather.yaml

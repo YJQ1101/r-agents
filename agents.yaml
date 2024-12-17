@@ -1,0 +1,4 @@
+agents:
+  coder: src/agents/coder/config.yaml
+  demo: src/agents/demo/config.yaml
+  weather: src/agents/weather/config.yaml

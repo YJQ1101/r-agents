@@ -1,34 +1,64 @@
+use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
 use actix_web::web;
-use crate::{inference::api::inference_config, web::index::index_config};
+use anyhow::{Context, Result};
+use serde::Deserialize;
 
-#[derive(Default,Clone,Debug)]
-pub struct AppSysConfig{
-    // pub config_db_file:String,
-    pub http_port:u16,
-    pub http_workers:Option<usize>,
-    // pub grpc_port:u16,
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct AgentsConfig {
+    pub agents: HashMap<String, String>,
 }
 
-impl AppSysConfig {
-    pub fn init_from_env() -> Self {
-        let http_port=std::env::var("RllamaR_HTTP_PORT")
-            .unwrap_or("8848".to_owned()).parse()
-            .unwrap_or(8848);
-        let http_workers = std::env::var("RllamaR_HTTP_WORKERS")
-            .unwrap_or("".to_owned())
-            .parse().ok();
-        Self { 
-            http_port,
-            http_workers,
+impl Default for AgentsConfig  {
+    fn default() -> Self {
+        Self {
+            agents: Default::default(),
         }
     }
+}
 
-    pub fn get_http_addr(&self) -> String {
-        format!("0.0.0.0:{}",&self.http_port)
+impl AgentsConfig {
+    pub fn init(config_file: PathBuf) -> Result<Self> {
+        // Self::load_from_file(&config_file)?
+        let err = || format!("Failed to load config at '{}'", config_file.display());
+        let content = read_to_string(&config_file).with_context(err)?;
+        let config: Self = serde_yaml::from_str(&content)
+            .map_err(|err| {
+                let err_msg = err.to_string();
+                // anyhow!("{err_msg}")
+            })
+            .unwrap();
+
+        Ok(config)
     }
 }
 
-pub fn app_config(config:&mut web::ServiceConfig){
-    index_config(config);
-    inference_config(config);
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct ToolsConfig {
+    pub tools: HashMap<String, String>,
+}
+
+impl Default for ToolsConfig  {
+    fn default() -> Self {
+        Self {
+            tools: Default::default(),
+        }
+    }
+}
+
+impl ToolsConfig {
+    pub fn init(config_file: PathBuf) -> Result<Self> {
+        // Self::load_from_file(&config_file)?
+        let err = || format!("Failed to load config at '{}'", config_file.display());
+        let content = read_to_string(&config_file).with_context(err)?;
+        let config: Self = serde_yaml::from_str(&content)
+            .map_err(|err| {
+                let err_msg = err.to_string();
+                // anyhow!("{err_msg}")
+            })
+            .unwrap();
+
+        Ok(config)
+    }
 }

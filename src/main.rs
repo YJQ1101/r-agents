@@ -1,40 +1,22 @@
-use RllamaR::common::download::download_model;
-use RllamaR::common::load::load_model;
-
+use std::error::Error;
 use clap::Parser;
+use RllamaR::common::cli::Cli;
+use RllamaR::common::config::{AgentsConfig, ToolsConfig};
+use RllamaR::common::core::use_agent;
+use RllamaR::common::AppSysConfig;
+use anyhow::Result;
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[arg(long,short = 'p')]
-    pull: Option<String>,
+fn main() -> Result<(), Box<dyn Error>> {
+    let cli = Cli::parse();
+    let agents_config = AgentsConfig::init("./agents.yaml".into())?;
+    let tools_config = ToolsConfig::init("./tools.yaml".into())?;
+    let sys_config = AppSysConfig::init_from_env()?;
 
-    #[arg(long,short = 'r')]
-    run: Option<String>,
-}
-
-fn main(){
-    let args = Args::parse();
-    
-    let provided_fields = vec![
-        args.pull.is_some(),
-        args.run.is_some(),
-    ];
-
-    let count = provided_fields.iter().filter(|&&b| b).count();
-
-    if count > 1 || count == 0 {
-        eprintln!("\x1b[1;31merror:\x1b[0m Please provide only one of the following fields: --pull, --run");
-        return;
-    }  
-
-    if let Some(model_name) = args.pull {
-        println!("\x1b[1;32mPulling with model: \x1b[0m{}", model_name);
-        download_model(model_name);
-    }  
-
-    if let Some(model_name) = args.run {
-        println!("\x1b[1;32mLoading model: \x1b[0m{}", model_name);
-        load_model(model_name);
-    } 
+    if let Some(agent) = &cli.agent {
+        agents_config.agents.get(agent).map(|value| {
+            println!("Found: {} -> {}", agent, value);
+            use_agent(value, tools_config, sys_config);
+        });
+    }
+    Ok(())
 }
