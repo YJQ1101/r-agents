@@ -1,0 +1,15 @@
+{
+  "name": "get_current_time",
+  "description": "Get the current time in a given location",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "time": {
+        "type": "string",
+        "description": "time"
+      }
+    },
+    "required": ["time"]
+  }
+}
+

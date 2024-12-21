@@ -30,4 +30,12 @@ impl AppSysConfig {
     pub fn get_http_addr(&self) -> String {
         format!("0.0.0.0:{}",&self.http_port)
     }
+
+    pub fn get_api_base(&self) -> String {
+        self.api_base.clone()
+    }
+
+    pub fn get_api_key(&self) -> String {
+        self.api_key.clone()
+    }
 }

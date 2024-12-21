@@ -36,13 +36,15 @@ impl AgentsConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ToolsConfig {
-    pub tools: HashMap<String, String>,
+    pub tools_yaml: HashMap<String, String>,
+    pub tools_exec: HashMap<String, String>,
 }
 
 impl Default for ToolsConfig  {
     fn default() -> Self {
         Self {
-            tools: Default::default(),
+            tools_yaml: Default::default(),
+            tools_exec: Default::default(),
         }
     }
 }
