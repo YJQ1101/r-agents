@@ -1,7 +1,13 @@
 tools_yaml:
   get_current_time: src/tools/get_current_time/get_current_time.json
   get_current_weather: src/tools/get_current_weather/get_current_weather.json
+  fs_cat: src/tools/fs_cat/fs_cat.json
+  fs_ls: src/tools/fs_ls/fs_ls.json
+  fs_mkdir: src/tools/fs_mkdir/fs_mkdir.json
 
 tools_exec:
   get_current_time: src/tools/get_current_time/get_current_time.sh
   get_current_weather: src/tools/get_current_weather/get_current_weather.sh
+  fs_cat: src/tools/fs_cat/fs_cat.sh
+  fs_ls: src/tools/fs_ls/fs_ls.sh
+  fs_mkdir: src/tools/fs_mkdir/fs_mkdir.sh

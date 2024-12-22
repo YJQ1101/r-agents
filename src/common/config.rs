@@ -1,5 +1,4 @@
 use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
-use actix_web::web;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
@@ -19,16 +18,9 @@ impl Default for AgentsConfig  {
 
 impl AgentsConfig {
     pub fn init(config_file: PathBuf) -> Result<Self> {
-        // Self::load_from_file(&config_file)?
         let err = || format!("Failed to load config at '{}'", config_file.display());
         let content = read_to_string(&config_file).with_context(err)?;
-        let config: Self = serde_yaml::from_str(&content)
-            .map_err(|err| {
-                let err_msg = err.to_string();
-                // anyhow!("{err_msg}")
-            })
-            .unwrap();
-
+        let config = serde_yaml::from_str(&content)?;
         Ok(config)
     }
 }
@@ -54,13 +46,7 @@ impl ToolsConfig {
         // Self::load_from_file(&config_file)?
         let err = || format!("Failed to load config at '{}'", config_file.display());
         let content = read_to_string(&config_file).with_context(err)?;
-        let config: Self = serde_yaml::from_str(&content)
-            .map_err(|err| {
-                let err_msg = err.to_string();
-                // anyhow!("{err_msg}")
-            })
-            .unwrap();
-
+        let config = serde_yaml::from_str(&content)?;
         Ok(config)
     }
 }

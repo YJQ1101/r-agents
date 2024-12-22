@@ -1,0 +1,30 @@
+{
+    "name": "cat",
+    "description": "Concatenate and display file content",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of files to display or concatenate. Multiple files can be provided."
+        },
+        "number_lines": {
+          "type": "boolean",
+          "description": "If true, number the output lines."
+        },
+        "show_ends": {
+          "type": "boolean",
+          "description": "If true, display a dollar sign ('$') at the end of each line."
+        },
+        "show_nonprinting": {
+          "type": "boolean",
+          "description": "If true, show non-printing characters in the output."
+        }
+      },
+      "required": ["file"]
+    }
+  }
+  

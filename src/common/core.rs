@@ -1,12 +1,10 @@
 use std::{collections::HashMap, fs::read_to_string, io::{stdout, Write}, process::Command};
 
-use actix_web::{middleware, web::Data, App, HttpServer};
 use anyhow::{Context, Result};
 use async_openai::{config::OpenAIConfig, types::{ChatCompletionMessageToolCall, ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestToolMessageArgs, ChatCompletionTool, ChatCompletionToolChoiceOption, ChatCompletionToolType, CreateChatCompletionRequestArgs}, Client};
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::Value;
-use super::{config::ToolsConfig, server::app_config, AppSysConfig};
 
 #[derive(Debug, Clone, Default)]
 pub struct Tools {
@@ -44,7 +42,7 @@ impl Exec {
         Ok(Self { exec })
     }
     pub fn find_exec(&self, name: &str) -> Option<String> {
-        self.exec.get(name).cloned()  // Cloning to return an owned String
+        self.exec.get(name).cloned()
     }
 }
 
@@ -71,26 +69,19 @@ impl Default for Agent  {
 }
 
 impl Agent {
-    pub fn load_yaml_file(agent_name: &str) -> Result<Self>  {
+    pub fn init(agent_name: &str) -> Result<Self>  {
         let err = || format!("Failed to load config at '{}'", agent_name);
         let content = read_to_string(agent_name).with_context(err)?;
-        let config = serde_yaml::from_str(&content)
-            .map_err(|err| {
-                let err_msg = err.to_string();
-                // anyhow!("{err_msg}")
-            })
-            .unwrap();
-    
+        let config = serde_yaml::from_str(&content)?;
         Ok(config)
     }
 
-    pub async fn run(&self, msg: Vec<ChatCompletionRequestMessage>, client: &Client<OpenAIConfig>, tools: &Tools, exec: &Exec) -> Result<String, Box<dyn std::error::Error>>  {
+    pub async fn run(&self, model: &str, msg: Vec<ChatCompletionRequestMessage>, client: &Client<OpenAIConfig>, tools: &Tools, exec: &Exec) -> Result<String, Box<dyn std::error::Error>>  {
         let request = CreateChatCompletionRequestArgs::default()
-        .max_tokens(512u32).model("llama3.2").messages(msg.clone()).tools(tools.tools.clone()).tool_choice(ChatCompletionToolChoiceOption::Auto).build()?;
+        .max_tokens(512u32).model(model).messages(msg.clone()).tools(tools.tools.clone()).tool_choice(ChatCompletionToolChoiceOption::Auto).build()?;
 
         let response_message = client
         .chat().create(request).await?.choices.first().unwrap().message.clone();
-
         let mut hh = String::new();
         if let Some(tool_calls) = response_message.tool_calls {
             let mut handles = Vec::new();
@@ -142,7 +133,7 @@ impl Agent {
     
             let subsequent_request = CreateChatCompletionRequestArgs::default()
                 .max_tokens(512u32)
-                .model("llama3.2")
+                .model(model)
                 .messages(messages)
                 .build()
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
@@ -173,46 +164,6 @@ impl Agent {
     }
 }         
 
-#[actix_web::main]
-pub async fn use_agent(agent_name: &str, tools_config: ToolsConfig, sys_config: AppSysConfig) -> Result<()>{
-    let agent = Agent::load_yaml_file(agent_name)?;
-    let http_addr = sys_config.get_http_addr();
-    let api_base = sys_config.get_api_base();
-    let api_key = sys_config.get_api_key();
-
-    let client = Client::with_config(
-        OpenAIConfig::new()
-        .with_api_key(api_key)
-        .with_api_base(api_base)
-    );
-    let tools = Tools::init(agent.tools.iter()
-        .filter_map(|tool| tools_config.tools_yaml.get(tool).map(|value| {
-        value.to_string()})).collect())?;
-
-    let exec = Exec::init(agent.tools.iter()
-        .filter_map(|tool| tools_config.tools_exec.get(tool).map(|value| {
-        (tool.to_string(), value.to_string())})).collect::<Vec<_>>())?;
-
-    let server = HttpServer::new(move || {
-        let agent = agent.clone();
-        let client = client.clone();
-        let tools = tools.clone();
-        let exec = exec.clone();
-        App::new()
-            .app_data(Data::new(agent))
-            .app_data(Data::new(client))
-            .app_data(Data::new(tools))
-            .app_data(Data::new(exec))
-            .wrap(middleware::Logger::default())
-            .configure(app_config)
-    });
-
-    server.bind(http_addr)?
-    .run()
-    .await?;
-    Ok(())
-}
-
 async fn call_fn(
     cmd: &str,
     args: &str,
@@ -221,9 +172,8 @@ async fn call_fn(
     let output = Command::new(cmd)
         .arg(args)
         .output()?;
-    let status = output.status;
+    // let status = output.status;
     let stdout = std::str::from_utf8(&output.stdout).context("Invalid UTF-8 in stdout")?;
-    let stderr = std::str::from_utf8(&output.stderr).context("Invalid UTF-8 in stderr")?;
 
     let function_response = serde_json::from_str(stdout).context(r#"The crawler response is invalid. It should follow the JSON format: `[{"path":"...", "text":"..."}]`."#)?;
 

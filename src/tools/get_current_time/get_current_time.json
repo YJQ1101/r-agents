@@ -4,12 +4,11 @@
   "parameters": {
     "type": "object",
     "properties": {
-      "time": {
+      "current_time": {
         "type": "string",
-        "description": "time"
+        "description": "current_time"
       }
     },
-    "required": ["time"]
+    "required": ["current_time"]
   }
 }
-

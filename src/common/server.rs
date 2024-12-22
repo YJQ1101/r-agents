@@ -1,14 +1,16 @@
 use actix_web::{web, HttpResponse, Responder};
-use async_openai::{config::OpenAIConfig, types::{ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequest}, Client};
+use async_openai::{config::OpenAIConfig, types::{ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestToolMessageArgs, ChatCompletionRequestUserMessageArgs}, Client};
 use serde::Deserialize;
 
 use super::core::{Agent, Exec, Tools};
 
 #[derive(PartialEq, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Role {
-    system,
-    user,
-    assistant,
+    System,
+    User,
+    Assistant,
+    Tool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,33 +30,38 @@ pub struct ChatWebParams {
 }
 
 impl ChatWebParams{
-    pub fn to_instance(&self) -> Vec<ChatCompletionRequestMessage> {
-        let request: Vec<ChatCompletionRequestMessage> = self.messages.iter().map(|msg| {
-            if msg.role == Role::user {
-                ChatCompletionRequestUserMessageArgs::default()
+    pub fn to_instance(&self, instructions: &str) -> Vec<ChatCompletionRequestMessage> {
+        let mut request: Vec<ChatCompletionRequestMessage> = vec![
+            ChatCompletionRequestSystemMessageArgs::default()
+            .content(instructions)
+            .build().unwrap()
+            .into()];
+        self.messages.iter().for_each(|msg| {
+            if msg.role == Role::User {
+                request.push(ChatCompletionRequestUserMessageArgs::default()
                 .content(msg.content.clone())
                 .build().unwrap()
-                .into()
-            } else if msg.role == Role::system {
-                ChatCompletionRequestSystemMessageArgs::default()
+                .into());
+            } else if msg.role == Role::Assistant {
+                request.push(ChatCompletionRequestAssistantMessageArgs::default()
                 .content(msg.content.clone())
                 .build().unwrap()
-                .into()
-            } else {
-                ChatCompletionRequestAssistantMessageArgs::default()
+                .into());
+            } else if msg.role == Role::Tool {
+                request.push(ChatCompletionRequestToolMessageArgs::default()
                 .content(msg.content.clone())
                 .build().unwrap()
-                .into()
+                .into());
             }
-        }).collect();
+        });
         request
     }
 }
 
 pub async fn run(a:web::Json<ChatWebParams>,agent:web::Data<Agent>, client:web::Data<Client<OpenAIConfig>>, function:web::Data<Tools>, exec:web::Data<Exec>) -> impl Responder {
-    let msg = a.0.to_instance();
-
-    match agent.run(msg, &client, &function, &exec).await {
+    let msg = a.0.to_instance(&agent.instructions);
+    let model = &a.0.model;
+    match agent.run(model, msg, &client, &function, &exec).await {
         Ok(response) => {
             HttpResponse::Ok().body(response)
         }
@@ -73,19 +80,3 @@ pub fn app_config(config:&mut web::ServiceConfig){
             )
     );
 }
-
-// curl http://localhost:8848/r-agents/v1/chat/completions \
-// -H "Content-Type: application/json" \
-//   -d '{
-//     "model": "llama3.2:1b",
-//     "messages": [
-//       {
-//         "role": "system",
-//         "content": "You are a helpful assistant."
-//       },
-//       {
-//         "role": "user",
-//         "content": "Hello!"
-//       }
-//     ]
-//   }'

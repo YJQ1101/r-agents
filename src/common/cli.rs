@@ -3,9 +3,15 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Start a agent
+    /// agents yaml file
     #[clap(short = 'a', long)]
-    pub agent: Option<String>,
+    pub agents: String,
+    /// tools yaml file
+    #[clap(short = 't', long)]
+    pub tools: String,
+    /// Start a agent
+    #[clap(long)]
+    pub agent: String,
     /// Input text
     #[clap(trailing_var_arg = true)]
     text: Vec<String>,

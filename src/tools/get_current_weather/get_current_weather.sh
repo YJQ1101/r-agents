@@ -1,1 +1,1 @@
-date
+curl "wttr.in?format=j1"
