@@ -1,0 +1,10 @@
+# ---- TOOL ----
+tool_embedding_model: bge-large          # Specifies the embedding model to use
+tool_top_k: 5                            # Specifies the number of documents to retrieve
+tool_json:                              
+  get_current_time: src/tools/web/get_current_time.json
+  get_current_weather: src/tools/web/get_current_weather.json
+
+tool_exec:
+  get_current_time: src/tools/web/get_current_time.sh
+  get_current_weather: src/tools/web/get_current_weather.sh

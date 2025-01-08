@@ -1,59 +1,20 @@
-use std::{collections::HashMap, fs::read_to_string, io::{stdout, Write}, process::Command};
+use std::{fs::read_to_string, io::{stdout, Write}};
 
 use anyhow::{Context, Result};
-use async_openai::{config::OpenAIConfig, types::{ChatCompletionMessageToolCall, ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestToolMessageArgs, ChatCompletionTool, ChatCompletionToolChoiceOption, ChatCompletionToolType, CreateChatCompletionRequestArgs}, Client};
+use async_openai::{config::OpenAIConfig, types::{ChatCompletionMessageToolCall, ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestToolMessageArgs, ChatCompletionTool, ChatCompletionToolChoiceOption, CreateChatCompletionRequest, CreateChatCompletionRequestArgs, CreateChatCompletionResponse, CreateEmbeddingRequest, CreateEmbeddingResponse}, Client};
 use futures::StreamExt;
 use serde::Deserialize;
-use serde_json::Value;
 
-#[derive(Debug, Clone, Default)]
-pub struct Tools {
-    pub tools: Vec<ChatCompletionTool>,
-}
-
-impl Tools {
-    pub fn init(tools_path: Vec<String>) -> Result<Self> {
-        let tools: Vec<ChatCompletionTool> = if tools_path.is_empty() {
-            vec![]
-        } else {   
-            tools_path.iter().map(|path| {
-                read_to_string(path)
-                .with_context(|| format!("Failed to read from file: {}", path))
-                .and_then(|content| {
-                    serde_json::from_str(&content)
-                    .with_context(|| format!("Failed to parse json from file: {}", path))})
-                .and_then(|function| Ok(ChatCompletionTool {
-                    r#type: ChatCompletionToolType::Function,
-                    function,}))
-                .expect(&format!("Failed to transform ChatCompletionTool"))}).collect()
-        };
-        Ok(Self { tools })
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Exec {
-    pub exec: HashMap<String, String>,
-}
-
-impl Exec {
-    pub fn init(exec_path: Vec<(String, String)>) -> Result<Self> {
-        let exec = exec_path.into_iter().collect();
-        Ok(Self { exec })
-    }
-    pub fn find_exec(&self, name: &str) -> Option<String> {
-        self.exec.get(name).cloned()
-    }
-}
+use super::{db::Database, tool::{call_fn, ToolInstance}, RAG_TEMPLATE};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct Agent{
     pub name: String,
     pub description: String,
-    pub version: String,
     pub instructions: String,
     pub tools: Vec<String>,
+    pub rags: Option<Vec<String>>,
 }
 
 impl Default for Agent  {
@@ -61,9 +22,9 @@ impl Default for Agent  {
         Self {
             name: Default::default(),
             description: Default::default(),
-            version: Default::default(),
             instructions: Default::default(),
             tools: Default::default(),
+            rags: Default::default(),
         }
     }
 }
@@ -76,17 +37,66 @@ impl Agent {
         Ok(config)
     }
 
-    pub async fn run(&self, model: &str, msg: Vec<ChatCompletionRequestMessage>, client: &Client<OpenAIConfig>, tools: &Tools, exec: &Exec) -> Result<String, Box<dyn std::error::Error>>  {
-        let request = CreateChatCompletionRequestArgs::default()
-        .max_tokens(512u32).model(model).messages(msg.clone()).tools(tools.tools.clone()).tool_choice(ChatCompletionToolChoiceOption::Auto).build()?;
+    pub fn rag_template(&self, embeddings: &str, text: &str) -> String {
+        if embeddings.is_empty() {
+            return text.to_string();
+        }
+        RAG_TEMPLATE
+            // .as_ref()
+            // .unwrap_or(RAG_TEMPLATE)
+            .replace("__CONTEXT__", embeddings)
+            .replace("__INPUT__", text)
+    }
 
-        let response_message = client
-        .chat().create(request).await?.choices.first().unwrap().message.clone();
+    pub async fn chat_completions(&self, mut request: CreateChatCompletionRequest, client: &Client<OpenAIConfig>, db: &Box<dyn Database>, tool_instance: &ToolInstance) -> Result<CreateChatCompletionResponse, Box<dyn std::error::Error>> {
+        let model = request.model.clone();
+        let max_tokens = request.max_tokens.unwrap_or(512);
+        let mut messages = request.messages.clone();
+
+        let mut query: String = String::new();
+        for message in request.messages.iter() {
+            match message {
+                ChatCompletionRequestMessage::System(chat_completion_request_system_message) => query += &serde_json::to_string(&chat_completion_request_system_message.content)?,
+                ChatCompletionRequestMessage::User(chat_completion_request_user_message) => query += &serde_json::to_string(&chat_completion_request_user_message.content)?,
+                ChatCompletionRequestMessage::Assistant(chat_completion_request_assistant_message) => query += &serde_json::to_string(&chat_completion_request_assistant_message.content)?,
+                ChatCompletionRequestMessage::Tool(chat_completion_request_tool_message) => query += &serde_json::to_string(&chat_completion_request_tool_message.content)?,
+                _ => query = query,
+            }
+        }
+        println!("{}", query);
+
+        let mut tools: Vec<String> = Vec::new();
+        for tool in self.tools.iter() {
+            let tmp = db.query_tool(tool, &query, tool_instance.tool_embedding_model.get(tool).map(|x| x.as_str())).await?;
+            tools.extend(tmp);
+        }
+        println!("{:?}", tools);
+
+        let mut docu: Vec<String> = Vec::new();
+        if let Some(rags) = &self.rags {
+            for rag in rags.iter() {
+                let tmp = db.query_rag(rag, &query, Some("bge-large")).await?;
+                docu.extend(tmp);
+            }
+        }
+        println!("{:?}", docu);
+
+        let found_chat_tool: Vec<ChatCompletionTool> = tools.into_iter()
+        .filter_map(|key| tool_instance.tool_chat.get(&key).map(|value| value.clone())) 
+        .collect();
+        request.tools = Some(found_chat_tool);
+        request.tool_choice = Some(ChatCompletionToolChoiceOption::Auto);
+        let response = client
+        .chat().create(request).await?;
+
+        let response_message = response.choices.first().unwrap().message.clone();
+
         let mut hh = String::new();
+
         if let Some(tool_calls) = response_message.tool_calls {
             let mut handles = Vec::new();
             for tool_call in tool_calls {
-                if let Some(cmd) = exec.find_exec(&tool_call.function.name) {
+                if let Some(cmd) = tool_instance.tool_exec.get(&tool_call.function.name).map(|v| v.clone()) {
                     let args = tool_call.function.arguments.clone();
                     let tool_call_clone = tool_call.clone();
                     let handle =
@@ -102,8 +112,6 @@ impl Agent {
                     function_responses.push((tool_call_clone, response_content));
                 }
             }
-
-            let mut messages: Vec<ChatCompletionRequestMessage> = msg;
 
             let tool_calls: Vec<ChatCompletionMessageToolCall> = function_responses
                 .iter()
@@ -132,12 +140,12 @@ impl Agent {
             messages.extend(tool_messages);
     
             let subsequent_request = CreateChatCompletionRequestArgs::default()
-                .max_tokens(512u32)
+                .max_tokens(max_tokens)
                 .model(model)
                 .messages(messages)
                 .build()
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
-            println!("{:?}",subsequent_request);
+
             let mut stream = client.chat().create_stream(subsequent_request).await?;
     
             let mut lock = stdout().lock();
@@ -156,26 +164,13 @@ impl Agent {
                     }
                 }
             }
-        } else {
-            hh.push_str(&response_message.content.unwrap());
         }
     
-        Ok(hh)
+        Ok(response)
     }
-}         
 
-async fn call_fn(
-    cmd: &str,
-    args: &str,
-    // envs: Option<HashMap<String, String>>,
-) -> Result<Value, Box<dyn std::error::Error>> {
-    let output = Command::new(cmd)
-        .arg(args)
-        .output()?;
-    // let status = output.status;
-    let stdout = std::str::from_utf8(&output.stdout).context("Invalid UTF-8 in stdout")?;
-
-    let function_response = serde_json::from_str(stdout).context(r#"The crawler response is invalid. It should follow the JSON format: `[{"path":"...", "text":"..."}]`."#)?;
-
-    Ok(function_response)
-}
+    pub async fn embeddings(&self, request: CreateEmbeddingRequest, client: &Client<OpenAIConfig>) -> Result<CreateEmbeddingResponse, Box<dyn std::error::Error>>{
+        let response = client.embeddings().create(request).await?;
+        Ok(response)
+    }
+}      

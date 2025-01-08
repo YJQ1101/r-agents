@@ -1,0 +1,12 @@
+# ---- TOOL ----
+tool_embedding_model: bge-large          # Specifies the embedding model to use
+tool_top_k: 5                            # Specifies the number of documents to retrieve
+tool_json:                               
+  fs_cat: src/tools/fso/fs_cat.json
+  fs_ls: src/tools/fso/fs_ls.json
+  fs_mkdir: src/tools/fso/fs_mkdir.json
+
+tool_exec:
+  fs_cat: src/tools/fso/fs_cat.sh
+  fs_ls: src/tools/fso/fs_ls.sh
+  fs_mkdir: src/tools/fso/fs_mkdir.sh

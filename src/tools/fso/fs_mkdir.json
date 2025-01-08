@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "fs_mkdir",
+    "description": "Create directories",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path of the directory to create."
+        },
+        "parents": {
+          "type": "boolean",
+          "description": "If true, create parent directories as needed."
+        },
+        "mode": {
+          "type": "string",
+          "description": "Set permissions for the new directory (e.g., '755')."
+        }
+      },
+      "required": ["path"]
+    }
+  }
+}

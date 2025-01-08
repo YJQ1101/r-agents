@@ -1,0 +1,37 @@
+{
+  "type": "function",
+  "function": {
+    "name": "fs_ls",
+    "description": "List directory contents",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path to the directory to list. If not provided, lists the current directory."
+        },
+        "all": {
+          "type": "boolean",
+          "description": "If true, shows all files, including hidden ones (those starting with a dot)."
+        },
+        "long_format": {
+          "type": "boolean",
+          "description": "If true, shows detailed information for each file, such as permissions, ownership, and size."
+        },
+        "human_readable": {
+          "type": "boolean",
+          "description": "If true, displays file sizes in human-readable format (e.g., KB, MB)."
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "If true, lists the contents of subdirectories recursively."
+        },
+        "sort_by": {
+          "type": "string",
+          "description": "Specifies the sorting criteria. Options include 'name', 'size', 'time', etc."
+        }
+      },
+      "required": []
+    }
+  }
+}

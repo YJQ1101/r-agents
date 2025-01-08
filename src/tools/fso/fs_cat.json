@@ -1,5 +1,7 @@
 {
-    "name": "cat",
+  "type": "function",
+  "function": {
+    "name": "fs_cat",
     "description": "Concatenate and display file content",
     "parameters": {
       "type": "object",
@@ -27,4 +29,5 @@
       "required": ["file"]
     }
   }
+}
   
