@@ -3,62 +3,73 @@ r-agents provide a convenient way to build your exclusive agents.
 
 ## Prepare
 
-The library reads [API key](https://platform.openai.com/account/api-keys) from the environment variable `OPENAI_API_BASE` and `OPENAI_API_KEY`.
+The library reads [API key](https://platform.openai.com/account/api-keys) from the config.yaml file `api_base` and `api_key`.
 
-Meanwhile, there is also the proxy address of the local machine `HTTP_PORT`
+Meanwhile, there is also the proxy address of the local machine `http_port`
 ```bash
-export OPENAI_API_BASE=https://api.openai.com/v1
-export OPENAI_API_KEY='sk-...'
-export HTTP_PORT=8848
+api_base: https://api.openai.com/v1
+api_key: null
+http_port: 8848
 ```
 
 If you use ollama, you can set
 ```bash
-export OPENAI_API_BASE=http://localhost:11434/v1
+api_base: http://localhost:11434/v1       
+api_key: null
+http_port: 8848
 ```
-
-Through the `autogen.sh` script first build `agents.yaml`, `tools.yaml`, `rags.yaml`, this script will read the current set of tools, rags and agent, to prevent the use of the process can not find our configured files.
+And you need to specify the agent description file, tool description file, and rag description file.
 ```bash
-./autogen.sh
+# ---- agent ----
+agents:
+  demo: src/config/agents/demo/config.yaml
+  weather: src/config/agents/weather/config.yaml
+  coder: src/config/agents/coder/config.yaml
+
+# ---- rag ----
+rags:
+  demo: src/config/rags/demo/config.yaml
+  coder: src/config/rags/coder/config.yaml
+
+# ---- tool ----
+tools:
+  web: src/config/tools/web/config.yaml
+  fso: src/config/tools/fso/config.yaml
+
 ```
 
-To implement tool and document selection, we need to set up the vector database to match the tool and document that best matches the current context.
+To implement document selection, we need to set up the vector database to match the tool and document that best matches the current context.
 ```bash
 cargo run --bin chromadb -- -t tools.yaml  -r rags.yaml
 ```
 **Note that** you have to install the vector database locally or in docker first!
 
-## Usage
-`-a agents.yaml` specifies the agent configuration file.
-`-t tools.yaml` specifies the tool configuration file.
-`--agent demo` specifies that the related agent should be used.
-`-d chromadb` specifies that the vector database should be used.
+## Real-time Usage
+`--config config.yaml` specifies the config configuration file.
+`realtime` specifies the realtime mode you use.
 
+
+```bash
+cargo run --bin ragents -- realtime --config config.yaml
 ```
-cargo run --bin ragents -- -a agents.yaml --agent coder -t tools.yaml -d chromadb
-```
 
+![My GIF](media/realtime.gif)
 
-## Local Server Proxy
+## Local Server Proxy Usage
 r-agent implements agent ability through local proxy, user request LLM after being modified by the agent you are using
 ```bash
 Chat Completions API: http://127.0.0.1:8848/v1/chat/completions
 ```
 
-## Example
-```json
-curl -v http://localhost:8848/r-agents/v1/chat/completions \
--H "Content-Type: application/json" \
-  -d '{
-    "model": "llama3.2",
-    "messages": [
-      {
-        "role": "user",
-        "content": "What is the weather like?"
-      }
-    ]
-  }'
+`--config config.yaml` specifies the config configuration file.
+`serve` specifies the serve mode you use.
+
+
+```bash
+cargo run --bin ragents -- serve --config config.yaml
 ```
+
+
 
 ## Writing Your Own Agents
 
