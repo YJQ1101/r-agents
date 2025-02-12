@@ -1,47 +1,20 @@
-pub mod cli;
+use std::{fs::create_dir_all, path::Path};
+
+use anyhow::{anyhow, Context, Result};
+
 pub mod config;
 pub mod agent;
-pub mod server;
 pub mod rag;
 pub mod tool;
-pub mod db;
-
-#[derive(Default,Clone,Debug)]
-pub struct AppSysConfig{
-    pub api_base:String,
-    pub api_key:String,
-    pub http_port:u16,
-}
-
-impl AppSysConfig {
-    pub fn init_from_env() -> anyhow::Result<Self> {
-        let api_base = std::env::var("OPENAI_API_BASE")
-            .unwrap_or_else(|_| "".to_string())
-            .into();
-        let api_key = std::env::var("OPENAI_API_KEY")
-            .unwrap_or_else(|_| "".to_string())
-            .into();
-        let http_port=std::env::var("HTTP_PORT")
-        .unwrap_or("8848".to_owned())
-        .parse().unwrap_or(8848);
-        Ok(Self { 
-            api_base,
-            api_key,
-            http_port,
-        })
-    }
-    pub fn get_http_addr(&self) -> String {
-        format!("0.0.0.0:{}",&self.http_port)
-    }
-
-    pub fn get_api_base(&self) -> String {
-        self.api_base.clone()
-    }
-
-    pub fn get_api_key(&self) -> String {
-        self.api_key.clone()
-    }
-}
+pub mod util;
+pub mod session;
+pub mod input;
+pub mod ask;
+const TEMP_SESSION_NAME: &str = "temp";
+const LEFT_PROMPT: &str = "{color.green}{?session {?agent {agent}>}{session}{?role /}}{!session {?agent {agent}>}}{role}{?rag @{rag}}{color.cyan}{?session )}{!session >}{color.reset} ";
+const RIGHT_PROMPT: &str = "{color.purple}{?session {?consume_tokens {consume_tokens}({consume_percent}%)}{!consume_tokens {consume_tokens}}}{color.reset}";
+const SESSIONS_DIR_NAME: &str = "sessions";
+const AGENTS_DIR_NAME: &str = "agents";
 
 const RAG_TEMPLATE: &str = r#"Answer the query based on the context while respecting the rules. (user query, some textual context and rules, all inside xml tags)
 
@@ -61,3 +34,50 @@ __CONTEXT__
 <user_query>
 __INPUT__
 </user_query>"#;
+
+pub fn get_env_name(key: &str) -> String {
+    format!("{}_{key}", env!("CARGO_CRATE_NAME"),).to_ascii_uppercase()
+}
+
+pub fn normalize_env_name(value: &str) -> String {
+    value.replace('-', "_").to_ascii_uppercase()
+}
+
+pub fn ensure_parent_exists(path: &Path) -> Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| anyhow!("Failed to write to '{}', No parent path", path.display()))?;
+    if !parent.exists() {
+        create_dir_all(parent).with_context(|| {
+            format!(
+                "Failed to write to '{}', Cannot create parent directory",
+                path.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WorkingMode {
+    Realtime,
+    Serve,
+}
+
+impl WorkingMode {
+    pub fn is_realtime(&self) -> bool {
+        *self == WorkingMode::Realtime
+    }
+    pub fn is_serve(&self) -> bool {
+        *self == WorkingMode::Serve
+    }
+}
+impl Default for WorkingMode {
+    fn default() -> Self {
+        WorkingMode::Realtime
+    }
+}

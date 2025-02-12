@@ -9,7 +9,6 @@ actix-web = "4"
 actix-http = "3"
 actix = "0.13"
 log="0.4"
-env_logger = "0.7"
 anyhow = "1"
 serde = {version = "1", features = ["derive","rc"]}
 serde_json = "1"
@@ -19,10 +18,16 @@ async-openai = "0.26.0"
 futures = "0.3.30"
 reqwest = { version = "0.12.9", features = ["json", "blocking"]}
 chromadb = { version = "1.1.0", features = ["openai"]}
-pdf-extract = "0.7.12"
-ureq = { version = "2.12.1", features = ["proxy-from-env", "socks-proxy"] }
-tokenizers = { version = "0.21.0", features = ["http"]}
 async-trait = "0.1.84"
+reedline = "0.38.0"
+lazy_static = "1.5.0"
+async-recursion = "1.1.1"
+fancy-regex = "0.14.0"
+dirs = "6.0.0"
+chrono = "0.4.39"
+inquire = "0.7.5"
+nu-ansi-term = "0.50.0"
+parking_lot = "0.12.1"
 
 [[bin]]
 name = "chromadb"

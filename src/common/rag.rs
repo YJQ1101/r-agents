@@ -2,7 +2,7 @@ use std::fs::read_to_string;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-#[derive(Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Rag {
     pub rag_embedding_model: String,
     pub rag_top_k: usize,

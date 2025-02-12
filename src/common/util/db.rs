@@ -38,7 +38,7 @@ impl Database for Chroma {
             let openai_embeddings = OpenAIEmbeddings::new(OpenAIConfig{ 
                 api_endpoint: format!("{}{}", std::env::var("OPENAI_API_BASE").unwrap_or_else(|_| "".to_string()), "/embeddings"),
                 api_key: std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| "".to_string()).into(),
-                model: embedding_function.unwrap_or("beg-large").to_string(),
+                model: embedding_function.unwrap_or("bge-large").to_string(),
             });
             let query_result = collection.query(query, Some(Box::new(openai_embeddings))).await?;
         Ok(query_result.ids.into_iter().flatten().collect())
@@ -58,7 +58,7 @@ impl Database for Chroma {
             let openai_embeddings = OpenAIEmbeddings::new(OpenAIConfig{ 
                 api_endpoint: format!("{}{}", std::env::var("OPENAI_API_BASE").unwrap_or_else(|_| "".to_string()), "/embeddings"),
                 api_key: std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| "".to_string()).into(),
-                model: embedding_function.unwrap_or("beg-large").to_string(),
+                model: embedding_function.unwrap_or("bge-large").to_string(),
             });
             let query_result = collection.query(query, Some(Box::new(openai_embeddings))).await?;
         let documents = query_result.documents.unwrap_or(vec![]);
