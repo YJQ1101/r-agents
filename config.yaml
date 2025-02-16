@@ -8,16 +8,16 @@ top_p: null                      # Set default top-p parameter, range (0, 1)
 
 # ---- agent ----
 agents:
-  demo: src/config/agents/demo/config.yaml
-  weather: src/config/agents/weather/config.yaml
-  coder: src/config/agents/coder/config.yaml
+  demo: config/agents/demo/config.yaml
+  weather: config/agents/weather/config.yaml
+  coder: config/agents/coder/config.yaml
 
 # ---- rag ----
 rags:
-  demo: src/config/rags/demo/config.yaml
-  coder: src/config/rags/coder/config.yaml
+  demo: config/rags/demo/config.yaml
+  coder: config/rags/coder/config.yaml
 
 # ---- tool ----
 tools:
-  web: src/config/tools/web/config.yaml
-  fso: src/config/tools/fso/config.yaml
+  web: config/tools/web/config.yaml
+  fso: config/tools/fso/config.yaml

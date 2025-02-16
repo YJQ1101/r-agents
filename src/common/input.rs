@@ -68,4 +68,8 @@ impl Input {
     pub fn message_content(&self) -> &str {
         &self.text
     }
+
+    pub fn regenerate(&self) -> bool {
+        self.regenerate
+    }
 }

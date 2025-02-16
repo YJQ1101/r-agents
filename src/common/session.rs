@@ -133,39 +133,26 @@ impl Session {
         Ok(())
     }
 
-
     pub fn add_message(&mut self, input: &Input, output: &str) -> Result<()> {
-        // if input.continue_output().is_some() {
-        //     if let Some(message) = self.messages.last_mut() {
-        //         match message {
-        //             ChatCompletionRequestMessage::Assistant(text) => *text = format!("{text}{output}"),
-        //             ChatCompletionRequestMessage::Tool(text) => query += &serde_json::to_string(&chat_completion_request_tool_message.content)?,
-        //             _ => todo!(),
-        //         }
-        //         if let CreateMessageRequestContent::Content(text) = &mut message {
-        //             *text = format!("{text}{output}");
-        //         }
-        //     }
-        // } else {
-            // if self.messages.is_empty() {
-            //     if self.name == TEMP_SESSION_NAME {
-                    // let raw_input = input.raw();
-                    // let chat_history = format!("USER: {raw_input}\nASSISTANT: {output}\n");
-                    // self.autoname = Some(AutoName::new_from_chat_history(chat_history));
-                // }
-                // self.messages.extend(input.role().build_messages(input));
-            // } else {
-                self.messages
-                    .push(ChatCompletionRequestUserMessageArgs::default().content(input.message_content()).build()?.into());
-            // }
-            // self.data_urls.extend(input.data_urls());
-            // if let Some(tool_calls) = input.tool_calls() {
-            //     self.messages.push(ChatCompletionRequestToolMessageArgs::default().content(tool_calls).build()?.into());
-            // }
-            self.messages.push(ChatCompletionRequestAssistantMessageArgs::default().content(output).build()?.into());
-        // }
+        self.messages.push(ChatCompletionRequestAssistantMessageArgs::default().content(output).build()?.into());
         self.dirty = true;
         Ok(())
+    }
+
+    pub fn echo_messages(&self, input: &Input) -> Result<Vec<ChatCompletionRequestMessage>> {
+        let messages = self.build_messages(input);
+        Ok(messages)
+    }
+
+    pub fn build_messages(&self, input: &Input) -> Vec<ChatCompletionRequestMessage> {
+        let mut messages = self.messages.clone();
+        if input.regenerate() {
+            messages.pop();
+            return messages;
+        }
+
+        messages.push(ChatCompletionRequestUserMessageArgs::default().content(input.message_content()).build().unwrap().into());
+        messages
     }
 
     pub fn clear_messages(&mut self) {

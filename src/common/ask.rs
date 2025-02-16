@@ -15,14 +15,14 @@ pub async fn ask(
     if input.is_empty() {
         return Ok(());
     }
+
+    let request_message = config.write().echo_message(&input)?;
+
     let request: CreateChatCompletionRequest;
     if config.read().working_mode.is_realtime() {
         request = CreateChatCompletionRequestArgs::default()
         .model(config.read().model.clone())
-        .messages([ChatCompletionRequestUserMessageArgs::default()
-            .content(input.text.clone())
-            .build()?
-            .into()])
+        .messages(request_message)
         .build()?;
     } else {
         request = input.request.clone();

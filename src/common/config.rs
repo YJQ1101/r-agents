@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env, fs::{read_to_string, remove_file}, path::PathBuf, sync::Arc};
 use anyhow::{bail, Context, Result};
-use async_openai::{config::OpenAIConfig, Client};
+use async_openai::{config::OpenAIConfig, types::{ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs}, Client};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use crate::realtime::prompt::render_prompt;
@@ -208,6 +208,14 @@ impl CConfig {
             return Ok(());
         }
         Ok(())
+    }
+
+    pub fn echo_message(&mut self, input: &Input) -> Result<Vec<ChatCompletionRequestMessage>> {
+        if let Some(session) = &mut self.session {
+            session.echo_messages(&input)
+        } else {
+            Ok(vec![ChatCompletionRequestUserMessageArgs::default().content(input.message_content()).build()?.into()])
+        }   
     }
 
     pub fn sessions_dir(&self) -> PathBuf {
