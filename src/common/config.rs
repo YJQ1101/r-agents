@@ -1,11 +1,11 @@
 use std::{collections::HashMap, env, fs::{read_to_string, remove_file}, path::PathBuf, sync::Arc};
 use anyhow::{bail, Context, Result};
-use async_openai::{config::OpenAIConfig, types::{ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs}, Client};
+use async_openai::{config::OpenAIConfig, types::{ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs, ChatCompletionTool}, Client};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use crate::realtime::prompt::render_prompt;
 
-use super::{agent::Agent, get_env_name, input::Input, normalize_env_name, rag::Rag, session::Session, WorkingMode, AGENTS_DIR_NAME, LEFT_PROMPT, RIGHT_PROMPT, SESSIONS_DIR_NAME, TEMP_SESSION_NAME};
+use super::{agent::Agent, get_env_name, input::Input, normalize_env_name, session::Session, WorkingMode, AGENTS_DIR_NAME, LEFT_PROMPT, RIGHT_PROMPT, SESSIONS_DIR_NAME, TEMP_SESSION_NAME};
 
 pub type Config = Arc<RwLock<CConfig>>;
 
@@ -25,8 +25,6 @@ pub struct CConfig {
 
     #[serde(skip)]
     pub agent: Option<Agent>,
-    #[serde(skip)]
-    pub rag: Option<Rag>,
     #[serde(skip)]
     pub session: Option<Session>,
     #[serde(skip)]
@@ -158,9 +156,6 @@ impl CConfig {
             // output.insert("consume_percent", percent.to_string());
             // output.insert("user_messages_len", session.user_messages_len().to_string());
         }
-        if let Some(rag) = &self.rag {
-            output.insert("rag", rag.rag_embedding_model.to_string());
-        }
         if let Some(agent) = &self.agent {
             output.insert("agent", agent.name.to_string());
         }
@@ -218,6 +213,14 @@ impl CConfig {
         }   
     }
 
+    pub fn echo_tool(&mut self) -> Result<Vec<ChatCompletionTool>> {
+        if let Some(agent) = &mut self.agent {
+            agent.echo_tool()
+        } else {
+            Ok(vec![])
+        }   
+    }
+
     pub fn sessions_dir(&self) -> PathBuf {
         match &self.agent {
             None => match env::var(get_env_name("sessions_dir")) {
@@ -265,7 +268,7 @@ impl CConfig {
                 "Already in a session, please run '.exit session' first to exit the current session."
             );
         }
-        let mut session;
+        let session;
         match session_name {
             None | Some(TEMP_SESSION_NAME) => {
                 let session_file = self.session_file(TEMP_SESSION_NAME);
@@ -325,9 +328,10 @@ impl CConfig {
         }
         match self.agents.get(agent_name) {
             Some(agent_path) => {
-                let agent = Agent::init(agent_name, agent_path)?;
-                self.rag = agent.rag(&self.rags)?;
-                self.agent = Some(agent);
+                let mut agent = Agent::init(agent_name, agent_path)?;
+                agent.tool(&self.tools)?;
+                agent.rag(&self.tools)?;
+                self.agent = Some(agent);               
             },
             None => {
                 bail!("No this agent");
@@ -339,9 +343,16 @@ impl CConfig {
     pub fn exit_agent(&mut self) -> Result<()> {
         self.exit_session()?;
         if self.agent.take().is_some() {
-            self.rag.take();
             self.last_message = None;
         }
         Ok(())
     }
+
+    pub fn tool_exec(&mut self, name: &str) -> Option<&str>{
+        if let Some(agent) = &self.agent {
+            return agent.tool_exec(name)
+        }
+        None
+    }
+
 }

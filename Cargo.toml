@@ -14,7 +14,7 @@ serde = {version = "1", features = ["derive","rc"]}
 serde_json = "1"
 serde_yaml = "0.9.17"
 tokio = { version = "1.34.0", features = ["full"] }
-async-openai = "0.26.0"
+async-openai = "0.27.2"
 futures = "0.3.30"
 reqwest = { version = "0.12.9", features = ["json", "blocking"]}
 chromadb = { version = "1.1.0", features = ["openai"]}

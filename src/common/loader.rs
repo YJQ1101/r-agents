@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use anyhow::Result;
 
 pub const EXTENSION_METADATA: &str = "__extension__";
 

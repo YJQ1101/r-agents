@@ -1,12 +1,11 @@
 use std::fs::read_to_string;
-use std::{collections::HashMap, process::Command};
+use std::collections::HashMap;
 
 use anyhow::Context;
 use anyhow::Result;
 
 use async_openai::types::ChatCompletionTool;
 use serde::Deserialize;
-use serde_json::Value;
 
 #[derive(Default, Deserialize, Clone)]
 pub struct ToolInstance {
@@ -25,23 +24,23 @@ impl ToolInstance {
     }
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct Tool {
-    pub tool_embedding_model: String,
-    pub tool_top_k: usize,
     pub tool_json: HashMap<String, String>,
     pub tool_exec: HashMap<String, String>,
+    #[serde(skip)]
+    pub tool: Vec<ChatCompletionTool>,
 }
 
 impl Tool {
     pub fn init(tool_name: &str, tool_path: &str) -> Result<Self> {
         let err = || format!("Failed to load config at '{}'", tool_name);
         let content = read_to_string(tool_path).with_context(err)?;
-        let config = serde_yaml::from_str(&content)?;
-        Ok(config)
+        let tool = serde_yaml::from_str(&content)?;
+        Ok(tool)
     }
 
-    pub fn parse_json(&self) -> Result<HashMap<String, ChatCompletionTool>> {
+    pub fn parse_json(&mut self) -> Result<HashMap<String, ChatCompletionTool>> {
         let mut result: HashMap<String, ChatCompletionTool> = HashMap::new();
         for (tool_name,tool_json) in self.tool_json.iter() {
             let err = || format!("Failed to load json at '{}'", tool_json);
@@ -49,22 +48,11 @@ impl Tool {
             let config: ChatCompletionTool = serde_json::from_str(&content)?;
             result.insert(tool_name.to_string(), config);
         }
+        self.tool = result.iter().map(|(_, tool)| tool.clone()).collect();
         Ok(result)
     }
-}
 
-pub async fn call_fn(
-    cmd: &str,
-    args: &str,
-    // envs: Option<HashMap<String, String>>,
-) -> Result<Value, Box<dyn std::error::Error>> {
-    let output = Command::new(cmd)
-        .arg(args)
-        .output()?;
-    // let status = output.status;
-    let stdout = std::str::from_utf8(&output.stdout).context("Invalid UTF-8 in stdout")?;
-
-    let function_response = serde_json::from_str(stdout).context(r#"The crawler response is invalid. It should follow the JSON format: `[{"path":"...", "text":"..."}]`."#)?;
-
-    Ok(function_response)
+    pub fn tool_exec(&self, tool_name: &str) -> Option<&str> {
+        self.tool_exec.get(tool_name).map(|x| x.as_str())
+    }
 }

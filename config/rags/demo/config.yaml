@@ -4,4 +4,4 @@ rag_top_k: 5                                 # Specifies the number of documents
 rag_chunk_size: 20                           # Specifies the chunk size
 rag_chunk_overlap: 3                         # Specifies the chunk overlap
 documents:                                   # Specifies the documents
-  - src/rags/demo/file.txt
+  - config/rags/demo/file.txt

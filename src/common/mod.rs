@@ -6,10 +6,12 @@ pub mod config;
 pub mod agent;
 pub mod rag;
 pub mod tool;
-pub mod util;
 pub mod session;
 pub mod input;
 pub mod ask;
+pub mod loader;
+pub mod db;
+
 const TEMP_SESSION_NAME: &str = "temp";
 const LEFT_PROMPT: &str = "{color.green}{?session {?agent {agent}>}{session}{?role /}}{!session {?agent {agent}>}}{role}{?rag @{rag}}{color.cyan}{?session )}{!session >}{color.reset} ";
 const RIGHT_PROMPT: &str = "{color.purple}{?session {?consume_tokens {consume_tokens}({consume_percent}%)}{!consume_tokens {consume_tokens}}}{color.reset}";
